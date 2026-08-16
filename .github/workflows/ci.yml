@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'open-source-hardening-*'
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Public-release hygiene check
+        run: node scripts/check-public-hygiene.mjs
+
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+  installer-safety:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify publish.xml preservation and uninstall isolation
+        shell: pwsh
+        run: ./scripts/test-installer-safety.ps1
+
+  package-candidate:
+    if: startsWith(github.ref, 'refs/heads/open-source-hardening-')
+    needs: [validate, installer-safety]
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production payload
+        run: npm run build
+
+      - name: Package release candidate
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $stageRoot = Join-Path $PWD 'candidate-stage'
+          $addonStage = Join-Path $stageRoot "WpsWordFormatter_$version"
+          $scriptsStage = Join-Path $stageRoot 'scripts'
+
+          New-Item -ItemType Directory -Path $addonStage -Force | Out-Null
+          New-Item -ItemType Directory -Path $scriptsStage -Force | Out-Null
+
+          Copy-Item 'dist\*' $addonStage -Recurse -Force
+          Copy-Item 'install_release.bat' $stageRoot -Force
+          Copy-Item 'uninstall_offline.bat' $stageRoot -Force
+          Copy-Item 'scripts\install-prebuilt.ps1' $scriptsStage -Force
+          Copy-Item 'scripts\uninstall-offline.ps1' $scriptsStage -Force
+          Copy-Item 'LICENSE' $stageRoot -Force
+          Copy-Item 'THIRD_PARTY_NOTICES.md' $stageRoot -Force
+          Copy-Item 'README.md' $stageRoot -Force
+
+          $zip = "wps-word-formatter-$version-candidate.zip"
+          Compress-Archive -Path "$stageRoot\*" -DestinationPath $zip -Force
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "$hash  $zip" | Set-Content -Encoding ascii SHA256SUMS.txt
+
+      - name: Upload release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: wps-word-formatter-release-candidate
+          path: |
+            wps-word-formatter-*-candidate.zip
+            SHA256SUMS.txt
+          retention-days: 7

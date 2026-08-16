@@ -1,0 +1,41 @@
+{
+  "name": "wps-word-formatter",
+  "version": "0.9.0-beta.1",
+  "description": "WPS 文字 (WPS Writer) 本地智能文档排版、格式清理、结构体检与安全物理备份加载项",
+  "author": "WPS Word Formatter Contributors",
+  "license": "MIT",
+  "private": true,
+  "keywords": [
+    "wps",
+    "wps-addon",
+    "wps-writer",
+    "word-formatter",
+    "document-formatter",
+    "vue3",
+    "typescript",
+    "vite"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "vue-tsc --noEmit",
+    "deploy:offline": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-offline.ps1"
+  },
+  "dependencies": {
+    "lucide-vue-next": "^0.468.0",
+    "pinia": "^2.3.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vitest": "^4.1.10",
+    "vue-tsc": "^2.2.0"
+  }
+}

@@ -1,0 +1,31 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui">
+  <ribbon startFromScratch="false">
+    <tabs>
+      <tab id="wpsWordFormatterTab" label="智能排版">
+        <group id="formatterGroup" label="文档排版工具">
+          <button id="btnOpenFormatter" 
+                  label="智能排版" 
+                  size="large" 
+                  imageMso="PageSetupPageDialog" 
+                  onAction="OnAction" 
+                  screentip="智能文档排版" 
+                  supertip="自动识别公文与报告层级结构，一键统一文档格式，支持一键撤销与安全保护。" />
+          <button id="btnScanDoc" 
+                  label="快速分析" 
+                  size="normal" 
+                  imageMso="ReviewShowMarkupMenu" 
+                  onAction="OnAction" 
+                  screentip="分析文档结构" 
+                  supertip="分析当前文档各级标题、正文、表格与附件结构并生成诊断报告。" />
+          <button id="btnUndoFormat" 
+                  label="撤销排版" 
+                  size="normal" 
+                  imageMso="Undo" 
+                  onAction="OnAction" 
+                  screentip="撤销上次排版" 
+                  supertip="一键恢复到排版前的文档状态。" />
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>
