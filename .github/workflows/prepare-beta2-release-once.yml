@@ -49,6 +49,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json README.md CHANGELOG.md .github/workflows/prepare-beta2-release-once.yml
+          git add -A
           git commit -m "chore: prepare v0.9.0-beta.2 release metadata"
           git push origin HEAD:release/v0.9.0-beta.2
