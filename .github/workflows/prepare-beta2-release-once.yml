@@ -1,0 +1,54 @@
+name: Prepare beta.2 release metadata once
+
+on:
+  push:
+    branches:
+      - release/v0.9.0-beta.2
+    paths:
+      - '.github/workflows/prepare-beta2-release-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v0.9.0-beta.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Synchronize package lock and release docs
+        shell: bash
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          python - <<'PY'
+          from pathlib import Path
+
+          readme = Path('README.md')
+          text = readme.read_text(encoding='utf-8')
+          text = text.replace('`v0.9.0-beta.1`', '`v0.9.0-beta.2`', 1)
+          readme.write_text(text, encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          entry = '''## [0.9.0-beta.2] - 2026-08-17\n\n### Added\n- 新增“普通公文（2025）”内置模板。\n- 新增“规章制度（2025）”内置模板。\n- 新增“业务操作（2025）”内置模板。\n- 三套模板增加对应的五级标题编号识别规则与单元测试。\n\n### Changed\n- 根据《公文处理规范（2025年版）》照片配置标题、正文、表格标题、表格内容与附件样式。\n- 当前已验证宿主基线保持为 Windows x64 + WPS 文字 11.8.2.12094。\n\n'''
+          if '## [0.9.0-beta.2]' not in text:
+              marker = 'All notable changes to this project will be documented here.\n\n'
+              text = text.replace(marker, marker + entry, 1)
+          text = text.replace('Windows + WPS Writer 12.0', 'Windows x64 + WPS 文字 11.8.2.12094')
+          text = text.replace('Windows x64 + WPS Writer 12.0', 'Windows x64 + WPS 文字 11.8.2.12094')
+          changelog.write_text(text, encoding='utf-8')
+          PY
+          git rm .github/workflows/prepare-beta2-release-once.yml
+      - name: Commit metadata
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json README.md CHANGELOG.md .github/workflows/prepare-beta2-release-once.yml
+          git commit -m "chore: prepare v0.9.0-beta.2 release metadata"
+          git push origin HEAD:release/v0.9.0-beta.2
