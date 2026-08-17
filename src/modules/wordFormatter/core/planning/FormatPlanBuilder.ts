@@ -63,11 +63,18 @@ export class FormatPlanBuilder {
       }
 
       if (strategy === 'minimal') {
+        const isInlineHeading2 = role === 'heading-2' &&
+          template.options.autoDetectInlineHeading2 &&
+          !!rec?.inlineRanges && rec.inlineRanges.length >= 2
+        const comparisonStyle = isInlineHeading2 ? template.body : style
+        const comparisonRole: ParagraphRole = isInlineHeading2 ? 'body' : role
+        const comparisonName = isInlineHeading2 ? '正文（含同段二级标题）' : displayName
+
         const pChanges = FormatComparator.compareParagraph(
           p,
-          style,
-          role,
-          displayName,
+          comparisonStyle,
+          comparisonRole,
+          comparisonName,
           template.options.applyOutlineLevels ? outlineLevel : undefined
         )
 
