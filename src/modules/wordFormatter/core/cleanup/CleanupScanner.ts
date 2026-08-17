@@ -126,15 +126,11 @@ export class CleanupScanner {
           }
         }
 
-        // 5. Check Multiple Spaces within Text (Chinese context safe)
-        // Avoid collapsing single space between English words (e.g. "Word Formatter" is kept)
-        // Match 2 or more consecutive spaces or fullwidth spaces
-        if (/[^\x00-\x7F][ ]{2,}[^\x00-\x7F]|[\u4e00-\u9fa5][ ]+[\u4e00-\u9fa5]|\u3000{2,}/.test(raw)) {
-          // Replace 2+ spaces between Chinese characters with none or single space
-          const fixedText = raw
-            .replace(/([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])/g, '$1$2')
-            .replace(/ {2,}/g, ' ')
-            .replace(/\u3000+/g, '')
+        // 5. Check Multiple Spaces within Text.
+        // A single internal half/full-width space is meaningful content and must be preserved
+        // (e.g. "第一章 总则", "第一条 正文"). Only 2+ consecutive spaces are collapsed to one.
+        if (/\S[ \u3000]{2,}\S/.test(raw)) {
+          const fixedText = raw.replace(/(\S)[ \u3000]{2,}(?=\S)/g, '$1 ')
 
           if (fixedText !== raw) {
             issues.push({
@@ -145,7 +141,7 @@ export class CleanupScanner {
               rangeEnd: p.rangeEnd,
               originalText: raw,
               suggestedText: fixedText,
-              reason: '中文字符间包含多余连续空格，建议清除',
+              reason: '文本中包含连续多个空格，建议压缩为 1 个并保留结构分隔',
               severity: 'info',
               enabled: true,
               safeAutoFix: true

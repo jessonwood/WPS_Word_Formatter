@@ -175,6 +175,17 @@ function createTemplate(
   }
 }
 
+function withHeading1Overrides(template: FormatTemplate, overrides: Partial<ParagraphStyle>): FormatTemplate {
+  const heading1 = { ...template.heading1, ...overrides }
+  return {
+    ...template,
+    heading1,
+    headings: template.headings?.map(item =>
+      item.level === 1 ? { ...item, style: { ...heading1 } } : item
+    )
+  }
+}
+
 export const ordinaryOfficialDocumentTemplate = createTemplate(
   'template-document-processing-2025-ordinary',
   '普通公文（2025）',
@@ -189,18 +200,24 @@ export const ordinaryOfficialDocumentTemplate = createTemplate(
   ]
 )
 
-export const regulationTemplate = createTemplate(
-  'template-document-processing-2025-regulation',
-  '规章制度（2025）',
-  '依据《公文处理规范（2025年版）》照片所示主体格式配置：章、条、中文括号序号、阿拉伯数字、括号数字五级结构。',
-  ['一级标题（第一章）', '二级标题（第一条）', '三级标题（（一））', '四级标题（1.）', '五级标题（（1））'],
-  [
-    `^第[${CN_NUM}]+章`,
-    `^第[${CN_NUM}]+条`,
-    `^（[${CN_NUM}]+）`,
-    '^\\d+[.．](?!\\d)',
-    '^（\\d+）'
-  ]
+export const regulationTemplate = withHeading1Overrides(
+  createTemplate(
+    'template-document-processing-2025-regulation',
+    '规章制度（2025）',
+    '依据《公文处理规范（2025年版）》照片所示主体格式配置：章、条、中文括号序号、阿拉伯数字、括号数字五级结构。一级“第一章”默认居中；支持“第一条 + 空格 + 正文”同段结构，第一条按二级标题格式、后续内容按正文格式处理并保留分界空格。',
+    ['一级标题（第一章）', '二级标题（第一条）', '三级标题（（一））', '四级标题（1.）', '五级标题（（1））'],
+    [
+      `^第[${CN_NUM}]+章`,
+      `^第[${CN_NUM}]+条`,
+      `^（[${CN_NUM}]+）`,
+      '^\\d+[.．](?!\\d)',
+      '^（\\d+）'
+    ]
+  ),
+  {
+    alignment: 'center',
+    firstLineIndentChars: 0
+  }
 )
 
 export const businessOperationTemplate = createTemplate(

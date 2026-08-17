@@ -128,11 +128,20 @@ export class FormatEngine {
         for (const [pIdx, pChanges] of pMap) {
           const rec = recognition.find(r => r.paragraphIndex === pIdx)
           const role = rec?.role || 'body'
-          const targetStyle = this.resolveStyleForRole(role, template)
+          const isInlineHeading2 = role === 'heading-2' &&
+            template.options.autoDetectInlineHeading2 &&
+            !!rec?.inlineRanges && rec.inlineRanges.length >= 2
+          const targetStyle = isInlineHeading2 ? template.body : this.resolveStyleForRole(role, template)
           const targetOutline = this.resolveOutlineLevelForRole(role)
 
           try {
             await this.adapter.applyGranularParagraphChanges(pIdx, pChanges, targetStyle)
+
+            if (isInlineHeading2) {
+              const h2Style = this.resolveStyleForRole('heading-2', template)
+              const hRange = rec!.inlineRanges![0]
+              await this.runFormatter.formatInlineRange(pIdx, hRange.startOffset, hRange.endOffset, h2Style)
+            }
             
             // If outline-level was changed
             if (template.options.applyOutlineLevels && targetOutline !== undefined && pChanges.some(c => c.property === 'outline-level')) {

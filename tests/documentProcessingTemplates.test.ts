@@ -20,8 +20,6 @@ function expectCommonPhotoRules(template: typeof ordinaryOfficialDocumentTemplat
 
   for (const heading of template.headings ?? []) {
     expect(heading.style.fontSizePt).toBe(16)
-    expect(heading.style.firstLineIndentChars).toBe(2)
-    expect(heading.style.alignment).toBe('justify')
     expect(heading.style.lineSpacingPt).toBe(30)
     expect(heading.style.lineSpacingRule).toBe('exact')
     expect(heading.style.westernFont).toBe('Times New Roman')
@@ -44,6 +42,13 @@ function expectCommonPhotoRules(template: typeof ordinaryOfficialDocumentTemplat
   expect(template.attachment.firstLineIndentChars).toBe(0)
 }
 
+function expectStandardHeadingLayout(template: typeof ordinaryOfficialDocumentTemplate) {
+  for (const heading of template.headings ?? []) {
+    expect(heading.style.firstLineIndentChars).toBe(2)
+    expect(heading.style.alignment).toBe('justify')
+  }
+}
+
 function expectPattern(template: typeof ordinaryOfficialDocumentTemplate, level: number, sample: string) {
   const definition = template.headings?.find(item => item.level === level)
   expect(definition?.pattern).toBeTruthy()
@@ -55,6 +60,26 @@ describe('2025 document processing built-in templates', () => {
     expectCommonPhotoRules(ordinaryOfficialDocumentTemplate)
     expectCommonPhotoRules(regulationTemplate)
     expectCommonPhotoRules(businessOperationTemplate)
+    expectStandardHeadingLayout(ordinaryOfficialDocumentTemplate)
+    expectStandardHeadingLayout(businessOperationTemplate)
+  })
+
+  it('centers regulation chapter headings only and documents inline clause support', () => {
+    expect(regulationTemplate.heading1.alignment).toBe('center')
+    expect(regulationTemplate.heading1.firstLineIndentChars).toBe(0)
+    const regulationLevel1 = regulationTemplate.headings?.find(item => item.level === 1)
+    expect(regulationLevel1?.style.alignment).toBe('center')
+    expect(regulationLevel1?.style.firstLineIndentChars).toBe(0)
+
+    expect(ordinaryOfficialDocumentTemplate.heading1.alignment).toBe('justify')
+    expect(ordinaryOfficialDocumentTemplate.heading1.firstLineIndentChars).toBe(2)
+    expect(businessOperationTemplate.heading1.alignment).toBe('justify')
+    expect(businessOperationTemplate.heading1.firstLineIndentChars).toBe(2)
+
+    expect(regulationTemplate.description).toContain('第一章')
+    expect(regulationTemplate.description).toContain('默认居中')
+    expect(regulationTemplate.description).toContain('第一条 + 空格 + 正文')
+    expect(regulationTemplate.description).toContain('保留分界空格')
   })
 
   it('recognizes ordinary official-document numbering', () => {
