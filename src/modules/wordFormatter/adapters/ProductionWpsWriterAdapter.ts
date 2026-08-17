@@ -11,9 +11,8 @@ import { WordFormatterError } from '../types/errors'
 /**
  * Strict production adapter.
  *
- * The legacy WpsWriterAdapter still contains browser-development fallback behavior.
- * Production code must use this wrapper so a missing WPS document is reported as an
- * error instead of silently falling back to synthetic/mock document data.
+ * Production code uses this strict guard layer. Browser development uses the isolated
+ * MockWriterAdapter selected only by adapterFactory outside the WPS host.
  */
 export class ProductionWpsWriterAdapter extends WpsWriterAdapter implements WriterAdapter {
   private requireActiveDocument(): void {

@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { useWordFormatterStore } from '../stores/wordFormatterStore'
-import { BookmarkCheck, SlidersHorizontal } from 'lucide-vue-next'
+import { BookmarkCheck, SlidersHorizontal, Sparkles, FileDown } from 'lucide-vue-next'
 import { formatFontSize } from '@/shared/utils/fontUtils'
 
 const store = useWordFormatterStore()
 const emit = defineEmits<{
   (e: 'open-editor'): void
 }>()
+
+const handleExtractTemplate = () => {
+  const tpl = store.extractTemplateFromCurrentDocument()
+  if (tpl) emit('open-editor')
+}
 
 const onSelectChange = (event: Event) => {
   const target = event.target as HTMLSelectElement
@@ -21,10 +26,32 @@ const onSelectChange = (event: Event) => {
         <BookmarkCheck class="w-4 h-4 text-indigo-600" />
         <span class="title">排版模板</span>
       </div>
-      <button class="btn-config" @click="emit('open-editor')" title="自定义与管理模板参数">
-        <SlidersHorizontal class="w-3.5 h-3.5" />
-        <span>模板详情</span>
-      </button>
+      <div class="template-actions">
+        <button class="btn-config" @click="handleExtractTemplate" title="从当前文档已识别的格式生成一个自定义模板">
+          <FileDown class="w-3.5 h-3.5" />
+          <span>提取模板</span>
+        </button>
+        <button class="btn-config" @click="emit('open-editor')" title="自定义与管理模板参数">
+          <SlidersHorizontal class="w-3.5 h-3.5" />
+          <span>模板详情</span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="store.templateRecommendation" class="recommend-box">
+      <div class="recommend-main">
+        <Sparkles class="w-4 h-4 text-amber-500" />
+        <div>
+          <div class="recommend-title">推荐：{{ store.templateRecommendation.templateName }}</div>
+          <div class="recommend-reason">{{ store.templateRecommendation.reasons.join(' · ') }}</div>
+        </div>
+      </div>
+      <button
+        v-if="store.selectedTemplateId !== store.templateRecommendation.templateId"
+        class="btn-use-recommend"
+        @click="store.applyRecommendedTemplate()"
+      >使用推荐</button>
+      <span v-else class="recommend-used">已使用</span>
     </div>
 
     <div class="select-wrapper">
@@ -170,4 +197,14 @@ const onSelectChange = (event: Event) => {
   font-weight: 500;
   color: var(--wps-text-main);
 }
+</style>
+
+<style scoped>
+.template-actions { display:flex; gap:6px; }
+.recommend-box { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; margin-bottom:8px; border:1px solid #fde68a; background:#fffbeb; border-radius:8px; }
+.recommend-main { display:flex; align-items:flex-start; gap:6px; min-width:0; }
+.recommend-title { font-size:11.5px; font-weight:700; color:#92400e; }
+.recommend-reason { font-size:10px; color:#a16207; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:420px; }
+.btn-use-recommend { flex-shrink:0; border:1px solid #f59e0b; background:#fff; color:#b45309; border-radius:6px; padding:4px 8px; font-size:10.5px; cursor:pointer; }
+.recommend-used { flex-shrink:0; color:#15803d; font-size:10.5px; font-weight:600; }
 </style>

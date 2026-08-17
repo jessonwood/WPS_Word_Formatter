@@ -16,6 +16,8 @@ import { ChangeSetOptimizer } from '../core/planning/ChangeSetOptimizer'
 import { CleanupEngine } from '../core/cleanup/CleanupEngine'
 import { defaultWriterAdapter } from '../adapters/adapterFactory'
 import { logger } from '@/shared/logger/logger'
+import { TemplateRecommendationEngine, type TemplateRecommendation } from '../core/recommendation/TemplateRecommendationEngine'
+import { TemplateExtractionService } from '../core/templates/TemplateExtractionService'
 
 import { getSavedActiveTemplateId, saveActiveTemplateId } from '@/shared/utils/persistentStorage'
 
@@ -38,6 +40,7 @@ export interface WordFormatterState {
   backupConfig: BackupConfig
   backupSummary: BackupSummary | null
   diagnosticsReport: DiagnosticsReport | null
+  templateRecommendation: TemplateRecommendation | null
   showDiagnosticsModal: boolean
   showBackupPromptModal: boolean
   backupPromptType: 'needs-save' | 'unavailable'
@@ -71,6 +74,7 @@ export const useWordFormatterStore = defineStore('wordFormatter', {
     backupConfig: formatterService.getBackupService().getConfig(),
     backupSummary: formatterService.getBackupService().getSummary(),
     diagnosticsReport: null,
+    templateRecommendation: null,
     showDiagnosticsModal: false,
     showBackupPromptModal: false,
     backupPromptType: 'needs-save',
@@ -166,6 +170,7 @@ export const useWordFormatterStore = defineStore('wordFormatter', {
 
         const cleanupEngine = new CleanupEngine(defaultWriterAdapter)
         this.cleanupIssues = cleanupEngine.scan(model)
+        this.templateRecommendation = TemplateRecommendationEngine.recommend(model, results, this.allTemplates)
 
         this.refreshBackups()
 
@@ -231,6 +236,41 @@ export const useWordFormatterStore = defineStore('wordFormatter', {
     clearUserOverrides() {
       this.userOverrides = {}
       if (this.currentPlan) this.generatePlan()
+    },
+
+    applyRecommendedTemplate() {
+      if (!this.templateRecommendation) return
+      this.setSelectedTemplate(this.templateRecommendation.templateId)
+      logger.info('WordFormatterStore', `Applied recommended template: ${this.templateRecommendation.templateName}`)
+    },
+
+    extractTemplateFromCurrentDocument(): FormatTemplate | null {
+      if (!this.documentModel || this.recognitionResults.length === 0) {
+        this.errorMessage = '请先扫描当前文档，再提取模板'
+        return null
+      }
+      const extracted = TemplateExtractionService.extractAndSave(
+        this.documentModel,
+        this.effectiveRecognition,
+        this.selectedTemplate
+      )
+      this.refreshTemplates()
+      this.setSelectedTemplate(extracted.id)
+      logger.info('WordFormatterStore', `Extracted custom template from document: ${extracted.name}`)
+      return extracted
+    },
+
+    async executeSmartFormat() {
+      if (!this.documentModel) await this.scanDocument()
+      if (!this.documentModel) return
+
+      const safeIssues = this.cleanupIssues.filter(issue => issue.enabled && issue.safeAutoFix)
+      if (safeIssues.length > 0) {
+        logger.info('WordFormatterStore', `Smart flow: safely cleaning ${safeIssues.length} issue(s) before formatting`)
+        const cleanupResult = await this.executeCleanup(safeIssues)
+        if (!cleanupResult.success) return
+      }
+      await this.executeFormat()
     },
 
     setSelectedTemplate(id: string) {
