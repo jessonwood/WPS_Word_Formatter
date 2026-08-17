@@ -3,6 +3,11 @@ import { defaultTemplate } from './default'
 import { governmentTemplate } from './government'
 import { bankReportTemplate } from './bankReport'
 import { simpleReportTemplate } from './simpleReport'
+import {
+  ordinaryOfficialDocumentTemplate,
+  regulationTemplate,
+  businessOperationTemplate
+} from './documentProcessing2025'
 import { logger } from '@/shared/logger/logger'
 import { loadCustomTemplatesFromDisk, saveCustomTemplatesToDisk } from '@/shared/utils/persistentStorage'
 
@@ -18,6 +23,9 @@ export function validateTemplate(t: any): boolean {
 export class TemplateRepository {
   private builtInTemplates: FormatTemplate[] = [
     governmentTemplate,
+    ordinaryOfficialDocumentTemplate,
+    regulationTemplate,
+    businessOperationTemplate,
     bankReportTemplate,
     defaultTemplate,
     simpleReportTemplate
