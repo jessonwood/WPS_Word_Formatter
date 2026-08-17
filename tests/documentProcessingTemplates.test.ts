@@ -47,7 +47,7 @@ function expectCommonPhotoRules(template: typeof ordinaryOfficialDocumentTemplat
 function expectPattern(template: typeof ordinaryOfficialDocumentTemplate, level: number, sample: string) {
   const definition = template.headings?.find(item => item.level === level)
   expect(definition?.pattern).toBeTruthy()
-  expect(new RegExp(definition!.pattern!)).toMatch(sample)
+  expect(sample).toMatch(new RegExp(definition!.pattern!))
 }
 
 describe('2025 document processing built-in templates', () => {
