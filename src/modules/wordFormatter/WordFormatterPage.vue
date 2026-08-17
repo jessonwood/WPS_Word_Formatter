@@ -41,7 +41,7 @@ const showDryRunModal = ref(false)
 const showCleanupModal = ref(false)
 const logEntries = ref<LogEntry[]>([])
 const copySuccessToast = ref<string | null>(null)
-const advancedExpanded = ref(false)
+const advancedExpanded = ref(true)
 
 const handleOpenDryRun = () => {
   store.generatePlan()
