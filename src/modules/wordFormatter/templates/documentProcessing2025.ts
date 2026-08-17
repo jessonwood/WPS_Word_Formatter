@@ -1,7 +1,9 @@
 import type { FormatTemplate, ParagraphStyle } from '../types/template'
+import type { ParagraphRole } from '../types/recognition'
 
 const WESTERN_FONT = 'Times New Roman'
 const CN_NUM = '一二三四五六七八九十百千零〇'
+const HEADING_ROLES: ParagraphRole[] = ['heading-1', 'heading-2', 'heading-3', 'heading-4', 'heading-5']
 
 const page = {
   paperSize: 'A4' as const,
@@ -160,7 +162,7 @@ function createTemplate(
       id: `${id}-heading-${index + 1}`,
       name: `${name} ${headingNames[index]}`,
       pattern,
-      role: `heading-${index + 1}` as const,
+      role: HEADING_ROLES[index],
       enabled: true,
       description: `按《公文处理规范（2025年版）》识别${headingNames[index]}`
     })),
