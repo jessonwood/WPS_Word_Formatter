@@ -1,0 +1,253 @@
+name: Apply v1.0.1 fixes once
+
+on:
+  push:
+    branches: [feature/v1.0.1]
+    paths: ['.github/workflows/apply-v1.0.1-fixes-once.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/v1.0.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply v1.0.1 source fixes
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+          import re
+
+          # 1) Heading2Rule: support 第×条 + spaces + body as inline heading.
+          p = Path('src/modules/wordFormatter/core/recognition/rules/Heading2Rule.ts')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace(
+            "  // Regex matches （一）, (一), （十一）, (十一) etc.\n  private regex = /^[（(][一二三四五六七八九十百零〇]+[）)]\\s*(.*)$/\n",
+            "  // Regex matches （一）, (一), （十一）, (十一) etc.\n  private regex = /^[（(][一二三四五六七八九十百零〇]+[）)]\\s*(.*)$/\n  // Clause-style inline heading: 第×条 + at least one half/full-width space + body.\n  private articleInlineRegex = /^(第[一二三四五六七八九十百千零〇]+条)([ \\u3000]+)(.+)$/\n"
+          )
+          old = """    const text = paragraph.normalizedText.trim()\n    const match = text.match(this.regex)\n\n    if (match) {"""
+          new = """    const text = paragraph.normalizedText.trim()\n\n    const articleMatch = text.match(this.articleInlineRegex)\n    if (articleMatch) {\n      const headingText = articleMatch[1]\n      const headingLen = headingText.length\n      return {\n        matched: true,\n        role: 'heading-2',\n        confidence: 0.99,\n        ruleId: this.id,\n        reason: ['匹配“第×条 + 空格 + 正文”的同段二级标题结构，空格作为标题与正文边界保留'],\n        inlineRanges: [\n          { startOffset: 0, endOffset: headingLen, role: 'heading-2', text: headingText },\n          { startOffset: headingLen, endOffset: text.length, role: 'body', text: text.slice(headingLen) }\n        ]\n      }\n    }\n\n    const match = text.match(this.regex)\n\n    if (match) {"""
+          if old not in text:
+            raise SystemExit('Heading2Rule insertion point not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # 2) CustomPatternRule: built-in regulation custom rule has priority over Heading2Rule,
+          # so enrich custom heading-2 matches with the same article inline ranges.
+          p = Path('src/modules/wordFormatter/core/recognition/rules/CustomPatternRule.ts')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace(
+            "import type { RuleEvaluation } from '../../../types/recognition'",
+            "import type { RuleEvaluation, InlineRoleRange } from '../../../types/recognition'"
+          )
+          old = """      if (match) {\n        return {\n          matched: true,\n          role: this.ruleConfig.role,\n          confidence: 0.98, // High confidence for explicit user-defined regex\n          ruleId: this.id,\n          reason: [\n            `命中用户自定义规则「${this.ruleConfig.name}」`,\n            `正则表达式：/${this.ruleConfig.pattern}/`,\n            `匹配文本：“${text.slice(0, 35)}${text.length > 35 ? '...' : ''}”`\n          ]\n        }\n      }"""
+          new = """      if (match) {\n        let inlineRanges: InlineRoleRange[] | undefined\n        const articleMatch = this.ruleConfig.role === 'heading-2'\n          ? text.match(/^(第[一二三四五六七八九十百千零〇]+条)([ \\u3000]+)(.+)$/)\n          : null\n        if (articleMatch) {\n          const headingLen = articleMatch[1].length\n          inlineRanges = [\n            { startOffset: 0, endOffset: headingLen, role: 'heading-2', text: articleMatch[1] },\n            { startOffset: headingLen, endOffset: text.length, role: 'body', text: text.slice(headingLen) }\n          ]\n        }\n\n        return {\n          matched: true,\n          role: this.ruleConfig.role,\n          confidence: inlineRanges ? 0.99 : 0.98, // High confidence for explicit user-defined regex\n          ruleId: this.id,\n          reason: [\n            `命中用户自定义规则「${this.ruleConfig.name}」`,\n            `正则表达式：/${this.ruleConfig.pattern}/`,\n            `匹配文本：“${text.slice(0, 35)}${text.length > 35 ? '...' : ''}”`,\n            ...(inlineRanges ? ['识别为“第×条 + 空格 + 正文”的同段二级标题，保留分界空格'] : [])\n          ],\n          inlineRanges\n        }\n      }"""
+          if old not in text:
+            raise SystemExit('CustomPatternRule block not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # 3) CleanupScanner: only collapse 2+ internal spaces to exactly one; never delete a single internal space.
+          p = Path('src/modules/wordFormatter/core/cleanup/CleanupScanner.ts')
+          text = p.read_text(encoding='utf-8')
+          old = """        // 5. Check Multiple Spaces within Text (Chinese context safe)\n        // Avoid collapsing single space between English words (e.g. \"Word Formatter\" is kept)\n        // Match 2 or more consecutive spaces or fullwidth spaces\n        if (/[^\\x00-\\x7F][ ]{2,}[^\\x00-\\x7F]|[\\u4e00-\\u9fa5][ ]+[\\u4e00-\\u9fa5]|\\u3000{2,}/.test(raw)) {\n          // Replace 2+ spaces between Chinese characters with none or single space\n          const fixedText = raw\n            .replace(/([\\u4e00-\\u9fa5])\\s+([\\u4e00-\\u9fa5])/g, '$1$2')\n            .replace(/ {2,}/g, ' ')\n            .replace(/\\u3000+/g, '')\n\n          if (fixedText !== raw) {"""
+          new = """        // 5. Check Multiple Spaces within Text.\n        // A single internal half/full-width space is meaningful content and must be preserved\n        // (e.g. \"第一章 总则\", \"第一条 正文\"). Only 2+ consecutive spaces are collapsed to one.\n        if (/[ \\u3000]{2,}/.test(raw)) {\n          const fixedText = raw.replace(/[ \\u3000]{2,}/g, ' ')\n\n          if (fixedText !== raw) {"""
+          if old not in text:
+            raise SystemExit('CleanupScanner multispace block not found')
+          text = text.replace(old, new, 1)
+          text = text.replace("reason: '中文字符间包含多余连续空格，建议清除'", "reason: '文本中包含连续多个空格，建议压缩为 1 个并保留结构分隔'")
+          p.write_text(text, encoding='utf-8')
+
+          # 4) Minimal plan: compare inline heading-2 paragraph against BODY base style,
+          # then FormatEngine overlays only the heading range with heading-2 style.
+          p = Path('src/modules/wordFormatter/core/planning/FormatPlanBuilder.ts')
+          text = p.read_text(encoding='utf-8')
+          old = """      if (strategy === 'minimal') {\n        const pChanges = FormatComparator.compareParagraph(\n          p,\n          style,\n          role,\n          displayName,\n          template.options.applyOutlineLevels ? outlineLevel : undefined\n        )"""
+          new = """      if (strategy === 'minimal') {\n        const isInlineHeading2 = role === 'heading-2' &&\n          template.options.autoDetectInlineHeading2 &&\n          !!rec?.inlineRanges && rec.inlineRanges.length >= 2\n        const comparisonStyle = isInlineHeading2 ? template.body : style\n        const comparisonRole: ParagraphRole = isInlineHeading2 ? 'body' : role\n        const comparisonName = isInlineHeading2 ? '正文（含同段二级标题）' : displayName\n\n        const pChanges = FormatComparator.compareParagraph(\n          p,\n          comparisonStyle,\n          comparisonRole,\n          comparisonName,\n          template.options.applyOutlineLevels ? outlineLevel : undefined\n        )"""
+          if old not in text:
+            raise SystemExit('FormatPlanBuilder minimal block not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # 5) Minimal execution: use body target style for paragraph base and overlay inline H2 range.
+          p = Path('src/modules/wordFormatter/core/formatting/FormatEngine.ts')
+          text = p.read_text(encoding='utf-8')
+          old = """          const rec = recognition.find(r => r.paragraphIndex === pIdx)\n          const role = rec?.role || 'body'\n          const targetStyle = this.resolveStyleForRole(role, template)\n          const targetOutline = this.resolveOutlineLevelForRole(role)\n\n          try {\n            await this.adapter.applyGranularParagraphChanges(pIdx, pChanges, targetStyle)\n            \n            // If outline-level was changed\n            if (template.options.applyOutlineLevels && targetOutline !== undefined && pChanges.some(c => c.property === 'outline-level')) {\n              await this.outlineFormatter.formatOutline(pIdx, targetOutline)\n            }"""
+          new = """          const rec = recognition.find(r => r.paragraphIndex === pIdx)\n          const role = rec?.role || 'body'\n          const isInlineHeading2 = role === 'heading-2' &&\n            template.options.autoDetectInlineHeading2 &&\n            !!rec?.inlineRanges && rec.inlineRanges.length >= 2\n          const targetStyle = isInlineHeading2 ? template.body : this.resolveStyleForRole(role, template)\n          const targetOutline = this.resolveOutlineLevelForRole(role)\n\n          try {\n            await this.adapter.applyGranularParagraphChanges(pIdx, pChanges, targetStyle)\n\n            if (isInlineHeading2) {\n              const h2Style = this.resolveStyleForRole('heading-2', template)\n              const hRange = rec!.inlineRanges![0]\n              await this.runFormatter.formatInlineRange(pIdx, hRange.startOffset, hRange.endOffset, h2Style)\n            }\n            \n            // If outline-level was changed\n            if (template.options.applyOutlineLevels && targetOutline !== undefined && pChanges.some(c => c.property === 'outline-level')) {\n              await this.outlineFormatter.formatOutline(pIdx, targetOutline)\n            }"""
+          if old not in text:
+            raise SystemExit('FormatEngine minimal block not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # 6) Add v1.0.1 regression tests.
+          test = Path('tests/v101Regression.test.ts')
+          test.write_text(r'''import { describe, expect, it } from 'vitest'
+import { RecognitionEngine } from '../src/modules/wordFormatter/core/recognition/RecognitionEngine'
+import { CleanupScanner } from '../src/modules/wordFormatter/core/cleanup/CleanupScanner'
+import { FormatEngine } from '../src/modules/wordFormatter/core/formatting/FormatEngine'
+import { regulationTemplate } from '../src/modules/wordFormatter/templates/documentProcessing2025'
+import type { DocumentModel, ParagraphModel } from '../src/modules/wordFormatter/types/document'
+import type { WriterAdapter } from '../src/modules/wordFormatter/adapters/WriterAdapter'
+
+function makeDoc(texts: string[]): DocumentModel {
+  const paragraphs: ParagraphModel[] = texts.map((text, i) => ({
+    index: i + 1,
+    text,
+    rawText: text,
+    normalizedText: text,
+    rangeStart: i * 100,
+    rangeEnd: (i + 1) * 100,
+    alignment: 'left',
+    fontSize: 16,
+    chineseFont: '仿宋_GB2312',
+    westernFont: 'Times New Roman',
+    bold: false,
+    hasImage: false, hasShape: false, hasField: false, hasBookmark: false, hasCommentReference: false,
+    isEmpty: text.trim().length === 0
+  }))
+  return {
+    id: 'v101', name: 'v101.docx', paragraphCount: paragraphs.length, tableCount: 0, sectionCount: 1,
+    paragraphs, tables: [], sections: [{ index: 1, orientation: 'portrait' }], metadata: {}, signature: 'sig'
+  }
+}
+
+class Adapter implements WriterAdapter {
+  paragraphStyles: any[] = []
+  rangeStyles: any[] = []
+  async hasActiveDocument(){return true}
+  async getActiveDocumentInfo(){return {id:'x',name:'x.docx'}}
+  async readParagraphs(){return []}
+  async readTables(){return []}
+  async readSections(){return []}
+  async getDocumentTextSignature(){return 'sig'}
+  async applyPageSettings(_s:any){}
+  async applyParagraphStyle(i:number,s:any){this.paragraphStyles.push({i,s})}
+  async applyRangeStyle(i:number,a:number,b:number,s:any){this.rangeStyles.push({i,a,b,s})}
+  async applyOutlineLevel(_i:number,_l:number){}
+  async applyTableStyle(_i:number,_s:any){}
+  async beginUndoRecord(_n:string){}
+  async endUndoRecord(){}
+  async executeNativeUndo(){return false}
+  async selectParagraph(_i:number){}
+  async setScreenUpdating(_v:boolean){}
+  async applyGranularParagraphChanges(i:number,_c:any[],s:any){this.paragraphStyles.push({i,s})}
+  async applyGranularSectionChanges(_i:number,_c:any[]){}
+  async applyHeaderFooter(_c:any,_s?:number){}
+  async applyPageNumbers(_c:any,_s?:number){}
+  async detectToc(){return null}
+  async insertToc(_c:any){}
+  async updateToc(_i?:number){}
+  async deleteToc(_i?:number){}
+  async replaceParagraphText(_i:number,_t:string){}
+  async deleteParagraph(_i:number){}
+  async saveCopyAs(_p:string){return true}
+  async saveActiveDocument(){return true}
+}
+
+describe('v1.0.1 inline heading and whitespace regressions', () => {
+  it('recognizes 第×条 + space + body as inline heading-2 and preserves the space in body range', () => {
+    const doc = makeDoc(['第一条 为规范业务操作，制定本办法。'])
+    const result = new RecognitionEngine().analyze(doc, regulationTemplate.customRecognitionRules)
+    expect(result[0].role).toBe('heading-2')
+    expect(result[0].inlineRanges?.length).toBe(2)
+    expect(result[0].inlineRanges?.[0].text).toBe('第一条')
+    expect(result[0].inlineRanges?.[1].text).toBe(' 为规范业务操作，制定本办法。')
+  })
+
+  it('does not split 第×条 without a separating space', () => {
+    const doc = makeDoc(['第一条为规范业务操作，制定本办法。'])
+    const result = new RecognitionEngine().analyze(doc, regulationTemplate.customRecognitionRules)
+    expect(result[0].role).toBe('heading-2')
+    expect(result[0].inlineRanges).toBeUndefined()
+  })
+
+  it('preserves a single structural space and collapses multiple internal spaces to one', () => {
+    const scanner = new CleanupScanner()
+    const single = scanner.scan(makeDoc(['第一章 总则', '第一条 正文内容']))
+    expect(single.filter(i => i.type === 'multiple-spaces')).toHaveLength(0)
+
+    const multi = scanner.scan(makeDoc(['第一章   总则', '第一条　　正文内容']))
+      .filter(i => i.type === 'multiple-spaces')
+    expect(multi).toHaveLength(2)
+    expect(multi[0].suggestedText).toBe('第一章 总则')
+    expect(multi[1].suggestedText).toBe('第一条 正文内容')
+    expect(multi.every(i => i.safeAutoFix)).toBe(true)
+  })
+
+  it('minimal formatting applies body base style and heading-2 style only to inline range', async () => {
+    const doc = makeDoc(['第一条 为规范业务操作，制定本办法。'])
+    const recognition = new RecognitionEngine().analyze(doc, regulationTemplate.customRecognitionRules)
+    const adapter = new Adapter()
+    const result = await new FormatEngine(adapter).execute({
+      document: doc,
+      recognition,
+      template: regulationTemplate,
+      strategy: 'minimal',
+      scope: 'all'
+    })
+    expect(result.success).toBe(true)
+    expect(adapter.paragraphStyles.some(x => x.i === 1 && x.s.chineseFont === regulationTemplate.body.chineseFont)).toBe(true)
+    expect(adapter.rangeStyles.some(x => x.i === 1 && x.a === 0 && x.b === 3 && x.s.chineseFont === regulationTemplate.heading2?.chineseFont)).toBe(true)
+  })
+})
+''', encoding='utf-8')
+
+          # 7) Version metadata -> 1.0.1.
+          pkg = Path('package.json')
+          data = json.loads(pkg.read_text(encoding='utf-8'))
+          data['version'] = '1.0.1'
+          pkg.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          lock = Path('package-lock.json')
+          data = json.loads(lock.read_text(encoding='utf-8'))
+          data['version'] = '1.0.1'
+          if '' in data.get('packages', {}): data['packages']['']['version'] = '1.0.1'
+          lock.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          manifest = Path('public/manifest.xml')
+          manifest.write_text(manifest.read_text(encoding='utf-8').replace('<version>1.0.0</version>', '<version>1.0.1</version>'), encoding='utf-8')
+          publish = Path('publish.xml')
+          s = publish.read_text(encoding='utf-8').replace('version="1.0.0"', 'version="1.0.1"').replace('WpsWordFormatter_1.0.0', 'WpsWordFormatter_1.0.1')
+          publish.write_text(s, encoding='utf-8')
+
+          readme = Path('README.md')
+          readme.write_text(readme.read_text(encoding='utf-8').replace('`v1.0.0`', '`v1.0.1`', 1), encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          c = changelog.read_text(encoding='utf-8')
+          marker = 'All notable changes to this project will be documented here.\n'
+          entry = '''\n## [1.0.1] - 2026-08-17\n\n### Fixed\n- 新增“第×条 + 空格 + 正文”的同段二级标题识别，空格作为标题与正文边界保留。\n- 最小修复模式支持同段二级标题：整段按正文做最小修复，仅标题 Range 套用二级标题格式。\n- “第一章 总则”“第一条 正文”等单个内部空格不再被文档清理误删。\n- 连续多个内部半角/全角空格仅压缩为 1 个，不再压缩为 0 个。\n- 一键整理并排版的 safeAutoFix 同步遵循上述空格保护规则。\n'''
+          if '## [1.0.1]' not in c:
+            c = c.replace(marker, marker + entry, 1)
+          changelog.write_text(c, encoding='utf-8')
+
+          # 8) Let normal CI run on feature/v1.0.1 and package a matching candidate.
+          ci = Path('.github/workflows/ci.yml')
+          s = ci.read_text(encoding='utf-8')
+          if "      - 'feature/v1.0.1'" not in s:
+            s = s.replace("      - 'feature/v1.0'", "      - 'feature/v1.0'\n      - 'feature/v1.0.1'")
+          s = s.replace("github.ref == 'refs/heads/feature/v1.0' || github.head_ref == 'feature/v1.0'", "github.ref == 'refs/heads/feature/v1.0' || github.head_ref == 'feature/v1.0' || github.ref == 'refs/heads/feature/v1.0.1' || github.head_ref == 'feature/v1.0.1'")
+          s = s.replace('name: wps-word-formatter-v1.0-release-candidate', 'name: wps-word-formatter-v1.0.1-release-candidate')
+          ci.write_text(s, encoding='utf-8')
+
+      - name: Install and verify
+        run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      - name: Commit fixes and remove one-time workflow
+        shell: bash
+        run: |
+          rm .github/workflows/apply-v1.0.1-fixes-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: preserve structural spaces and support inline clause headings'
+          git push origin feature/v1.0.1
