@@ -10,32 +10,6 @@ import { WpsAlignment, WpsLineSpacing, WpsOutlineLevel, WpsCellVerticalAlignment
 export class WpsWriterAdapter implements WriterAdapter {
   private activeUndoRecord: any = null
 
-  // Fallback in-memory mock document for standalone browser preview / testing
-  private mockDoc = {
-    name: '2026年小微企业信贷风险管理报告.docx',
-    paragraphs: [
-      { text: '关于印发2026年小微企业信贷风险管理报告的通知\r', align: 'center', size: 22, isBold: true },
-      { text: '银发〔2026〕18号\r', align: 'center', size: 14, isBold: false },
-      { text: '各分行、各直属机构、总行各部门：\r', align: 'left', size: 16, isBold: false },
-      { text: '为进一步健全普惠小微金融风险防控机制，现将《2026年小微企业信贷风险管理报告》印发给你们，请认真贯彻执行。\r', align: 'left', size: 16, isBold: false },
-      { text: '一、总体风险运行情况\r', align: 'left', size: 16, isBold: true },
-      { text: '2026年上半年，我行小微企业信贷业务保持稳健发展势头。截至6月末，全行小微企业贷款余额达到1.25亿元，较年初增长3.14%，资产质量整体保持在可控区间。\r', align: 'left', size: 16, isBold: false },
-      { text: '（一）资产质量总体稳定。截至6月末，不良贷款率较年初下降1.2个百分点，逾期90天以上贷款与不良贷款比例持续保持在80%以内。\r', align: 'left', size: 16, isBold: false },
-      { text: '（二）重点领域风险逐步出清。通过开展专项排查与分类处置，高风险行业小微贷款余额稳步压降。\r', align: 'left', size: 16, isBold: false },
-      { text: '1. 重点监测行业名单制管理\r', align: 'left', size: 16, isBold: false },
-      { text: '严格实施动态名单制准入，定期评估存量客户经营现金流情况。\r', align: 'left', size: 16, isBold: false },
-      { text: '2. 优化担保与抵质押措施\r', align: 'left', size: 16, isBold: false },
-      { text: '提升抵押物评估科学性，防范抵押物价值快速变动风险。\r', align: 'left', size: 16, isBold: false },
-      { text: '（1）严格贷前调查与穿透核查\r', align: 'left', size: 16, isBold: false },
-      { text: '强化对企业实际控制人信用记录及关联负债的穿透式核查。\r', align: 'left', size: 16, isBold: false },
-      { text: '表1 2026年上半年小微信贷风险分类统计表\r', align: 'center', size: 14, isBold: false },
-      { text: '图1 2026年风险趋势变化图\r', align: 'center', size: 14, isBold: false },
-      { text: '二、主要存在问题及成因分析\r', align: 'left', size: 16, isBold: true },
-      { text: '部分分支机构对外部经济环境波动的预判仍显不足，贷后主动管理精细化程度有待提升。\r', align: 'left', size: 16, isBold: false },
-      { text: '附件：1. 2026年重点小微企业风险台账\r', align: 'left', size: 16, isBold: false },
-      { text: '2. 分支机构信贷排查整改清单\r', align: 'left', size: 16, isBold: false }
-    ]
-  }
 
   private getDoc(): any {
     const app = getWpsApplication()
@@ -49,21 +23,12 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async hasActiveDocument(): Promise<boolean> {
     const doc = this.getDoc()
-    return !!doc || true // In standalone fallback returns true with mock
+    return !!doc
   }
 
   async getActiveDocumentInfo(): Promise<DocumentInfo | null> {
     const doc = this.getDoc()
-    if (!doc) {
-      // Mock environment return
-      return {
-        id: 'mock_doc_001',
-        name: this.mockDoc.name,
-        path: 'C:\\Users\\Mock\\Documents\\' + this.mockDoc.name,
-        isSaved: true,
-        isReadOnly: false
-      }
-    }
+    if (!doc) return null
 
     try {
       return {
@@ -85,31 +50,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async readParagraphs(): Promise<ParagraphModel[]> {
     const doc = this.getDoc()
-    if (!doc) {
-      // Fallback mock paragraphs
-      return this.mockDoc.paragraphs.map((p, idx) => {
-        const cleaned = cleanControlChars(p.text)
-        return {
-          index: idx + 1,
-          text: cleaned,
-          rawText: p.text,
-          normalizedText: cleaned,
-          rangeStart: idx * 100,
-          rangeEnd: (idx + 1) * 100,
-          alignment: p.align as any,
-          fontSize: p.size,
-          bold: p.isBold,
-          chineseFont: '仿宋_GB2312',
-          westernFont: 'Times New Roman',
-          hasImage: idx === 15,
-          hasShape: false,
-          hasField: false,
-          hasBookmark: false,
-          hasCommentReference: false,
-          isEmpty: cleaned.length === 0
-        }
-      })
-    }
+    if (!doc) return []
 
     try {
       const paragraphs: ParagraphModel[] = []
@@ -287,17 +228,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async readTables(): Promise<TableModel[]> {
     const doc = this.getDoc()
-    if (!doc) {
-      return [{
-        index: 1,
-        rangeStart: 1400,
-        rangeEnd: 1500,
-        rowCount: 4,
-        columnCount: 4,
-        previousParagraphIndex: 15,
-        nextParagraphIndex: 16
-      }]
-    }
+    if (!doc) return []
 
     try {
       const tables: TableModel[] = []
@@ -328,18 +259,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async readSections(): Promise<SectionModel[]> {
     const doc = this.getDoc()
-    if (!doc) {
-      return [{
-        index: 1,
-        pageWidth: 595.3,
-        pageHeight: 841.9,
-        topMargin: 104.9,
-        bottomMargin: 99.2,
-        leftMargin: 79.4,
-        rightMargin: 73.7,
-        orientation: 'portrait'
-      }]
-    }
+    if (!doc) return []
 
     try {
       const sections: SectionModel[] = []
@@ -372,7 +292,7 @@ export class WpsWriterAdapter implements WriterAdapter {
   async getDocumentTextSignature(): Promise<string> {
     const doc = this.getDoc()
     if (!doc) {
-      return calculateTextSignature(this.mockDoc.paragraphs.map(p => p.text))
+      throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
     }
 
     // 1. Fast-path full document content text in 1 single COM call
@@ -408,10 +328,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async applyPageSettings(settings: PageFormat): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', 'Mock applyPageSettings', settings)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       const sCount = settings.applyToAllSections ? (doc.Sections ? doc.Sections.Count : 1) : 1
@@ -457,10 +374,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async applyParagraphStyle(paragraphIndex: number, style: ParagraphStyle, protectEmphasis: boolean = true): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', `Mock applyParagraphStyle [P${paragraphIndex}]`, style)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       const p = doc.Paragraphs.Item(paragraphIndex)
@@ -585,10 +499,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async applyRangeStyle(paragraphIndex: number, startOffset: number, endOffset: number, style: RunStyleChange): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', `Mock applyRangeStyle [P${paragraphIndex} Range(${startOffset}, ${endOffset})]`, style)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       const p = doc.Paragraphs.Item(paragraphIndex)
@@ -645,10 +556,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async applyTableStyle(tableIndex: number, style: TableStyle): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', `Mock applyTableStyle [T${tableIndex}]`, style)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     if (!style.enabled) return
 
@@ -888,10 +796,7 @@ export class WpsWriterAdapter implements WriterAdapter {
     targetStyle: ParagraphStyle
   ): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', `Mock applyGranularParagraphChanges [P${paragraphIndex}] (${changes.length} changes)`)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       const p = doc.Paragraphs.Item(paragraphIndex)
@@ -1004,10 +909,7 @@ export class WpsWriterAdapter implements WriterAdapter {
     changes: import('../types/planning').FormatChange[]
   ): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', `Mock applyGranularSectionChanges [S${sectionIndex}] (${changes.length} changes)`)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       const sec = doc.Sections.Item(sectionIndex)
@@ -1045,10 +947,7 @@ export class WpsWriterAdapter implements WriterAdapter {
     sectionIndex?: number
   ): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', `Mock applyHeaderFooter [S${sectionIndex ?? 'all'}]`, config)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       const sCount = doc.Sections ? doc.Sections.Count : 1
@@ -1128,10 +1027,7 @@ export class WpsWriterAdapter implements WriterAdapter {
     sectionIndex?: number
   ): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', `Mock applyPageNumbers [S${sectionIndex ?? 'all'}]`, config)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       const sCount = doc.Sections ? doc.Sections.Count : 1
@@ -1296,10 +1192,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async insertToc(config: import('../types/toc').TocConfig): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', 'Mock insertToc', config)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       // 1. Ensure Main Title (Paragraph 1) is never treated as outline level 1-9
@@ -1495,10 +1388,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async updateToc(tocIndex: number = 1): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', 'Mock updateToc', tocIndex)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       // Ensure outline levels exist on standard headings
@@ -1553,10 +1443,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async deleteToc(tocIndex: number = 1): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', 'Mock deleteToc', tocIndex)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       if (doc.TablesOfContents && doc.TablesOfContents.Count >= tocIndex) {
@@ -1570,10 +1457,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async replaceParagraphText(paragraphIndex: number, text: string): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', `Mock replaceParagraphText [P${paragraphIndex}] -> "${text}"`)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       const p = doc.Paragraphs.Item(paragraphIndex)
@@ -1589,10 +1473,7 @@ export class WpsWriterAdapter implements WriterAdapter {
 
   async deleteParagraph(paragraphIndex: number): Promise<void> {
     const doc = this.getDoc()
-    if (!doc) {
-      logger.info('WpsWriterAdapter', `Mock deleteParagraph [P${paragraphIndex}]`)
-      return
-    }
+    if (!doc) throw new WordFormatterError({ code: 'WF001', message: '未检测到活动 WPS 文字文档', moduleName: 'WpsWriterAdapter' })
 
     try {
       const p = doc.Paragraphs.Item(paragraphIndex)

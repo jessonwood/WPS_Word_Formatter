@@ -15,7 +15,7 @@ import DryRunModal from './components/DryRunModal.vue'
 import CleanupModal from './components/CleanupModal.vue'
 import DiagnosticsModal from './components/DiagnosticsModal.vue'
 import BackupPromptModal from './components/BackupPromptModal.vue'
-import { wpsWriterAdapter } from './adapters/WpsWriterAdapter'
+import { defaultWriterAdapter } from './adapters/adapterFactory'
 import type { CleanupIssue } from './types/cleanup'
 import { logger, LogEntry } from '@/shared/logger/logger'
 import { 
@@ -41,6 +41,7 @@ const showDryRunModal = ref(false)
 const showCleanupModal = ref(false)
 const logEntries = ref<LogEntry[]>([])
 const copySuccessToast = ref<string | null>(null)
+const advancedExpanded = ref(true)
 
 const handleOpenDryRun = () => {
   store.generatePlan()
@@ -68,7 +69,7 @@ const executeButtonText = computed(() => {
     case 'headings-only': return '一键仅修标题大纲'
     case 'body-only': return '一键仅修正文与空行'
     case 'page-only': return '一键仅修页面设置'
-    default: return store.formatStrategy === 'minimal' ? '一键最小修复排版' : '一键完整标准化排版'
+    default: return '一键整理并排版'
   }
 })
 
@@ -141,7 +142,7 @@ const handleFilterRole = (role: string) => {
 }
 
 const handleExecuteFormat = async () => {
-  await store.executeFormat()
+  await store.executeSmartFormat()
   refreshLogs()
 }
 
@@ -222,11 +223,15 @@ const handleUndo = async () => {
         <!-- 5. Recognition summary chips -->
         <RecognitionSummary @filter-role="handleFilterRole" />
 
-        <!-- 6. Advanced format options -->
-        <FormatOptions />
-
-        <!-- 7. Automatic Table of Contents (TOC) -->
-        <TocSettings />
+        <!-- 6. Advanced options: hidden by default for a simple user flow -->
+        <button class="btn-advanced-toggle" @click="advancedExpanded = !advancedExpanded">
+          <Settings class="w-3.5 h-3.5" />
+          <span>{{ advancedExpanded ? '收起更多设置' : '更多设置' }}</span>
+        </button>
+        <div v-if="advancedExpanded" class="advanced-panel">
+          <FormatOptions />
+          <TocSettings />
+        </div>
       </div>
 
       <!-- TAB 2: Recognition Detail Table -->
@@ -271,7 +276,7 @@ const handleUndo = async () => {
     <!-- Bottom Action Bar with Scope & Strategy Selectors -->
     <footer class="app-footer">
       <!-- Strategy Selector -->
-      <div class="strategy-bar">
+      <div v-if="advancedExpanded" class="strategy-bar">
         <span class="scope-label">排版策略:</span>
         <div class="strategy-chips">
           <button 
@@ -294,7 +299,7 @@ const handleUndo = async () => {
       </div>
 
       <!-- Scope Selector -->
-      <div class="scope-bar">
+      <div v-if="advancedExpanded" class="scope-bar">
         <span class="scope-label">排版范围:</span>
         <div class="scope-chips">
           <button 
@@ -345,7 +350,7 @@ const handleUndo = async () => {
           class="btn-footer-preview" 
           :disabled="store.formatStatus === 'formatting' || store.scanStatus === 'scanning'"
           @click="handleOpenDryRun"
-          title="生成并查看预计修改清单，不修改文档"
+          title="先看会修改哪些格式，不修改文档"
         >
           <Eye class="w-3.5 h-3.5" />
           <span>预览修改</span>
@@ -380,7 +385,7 @@ const handleUndo = async () => {
       :visible="showCleanupModal"
       :issues="store.cleanupIssues"
       :categories="store.cleanupCategories"
-      :adapter="wpsWriterAdapter"
+      :adapter="defaultWriterAdapter"
       :executing="store.cleanupExecuting"
       @close="showCleanupModal = false"
       @execute="handleExecuteCleanup"
@@ -407,6 +412,10 @@ const handleUndo = async () => {
 </template>
 
 <style scoped>
+.btn-advanced-toggle { width:100%; display:flex; align-items:center; justify-content:center; gap:5px; padding:7px; border:1px dashed #cbd5e1; background:#f8fafc; color:#64748b; border-radius:8px; cursor:pointer; font-size:11px; }
+.btn-advanced-toggle:hover { color:#2563eb; border-color:#93c5fd; background:#eff6ff; }
+.advanced-panel { display:flex; flex-direction:column; gap:8px; }
+
 .app-layout {
   display: flex;
   flex-direction: column;
