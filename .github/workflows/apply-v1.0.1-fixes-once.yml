@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/apply-v1.0.1-fixes-once.yml'
       - 'scripts/apply-v101-fixes.mjs'
+      - 'scripts/fix-v101-internal-space.mjs'
 
 permissions:
   contents: write
@@ -24,7 +25,9 @@ jobs:
           node-version: 22
           cache: npm
       - name: Apply patch
-        run: node scripts/apply-v101-fixes.mjs
+        run: |
+          node scripts/apply-v101-fixes.mjs
+          node scripts/fix-v101-internal-space.mjs
       - name: Install dependencies
         run: npm ci
       - name: Type check
@@ -36,6 +39,7 @@ jobs:
       - name: Commit patched v1.0.1 branch
         shell: bash
         run: |
+          rm -f scripts/fix-v101-internal-space.mjs
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
