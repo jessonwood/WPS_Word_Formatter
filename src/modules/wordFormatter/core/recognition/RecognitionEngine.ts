@@ -15,7 +15,12 @@ export class RecognitionEngine {
   }
 
   analyze(document: DocumentModel, customRules?: CustomRecognitionRule[]): RecognitionResult[] {
-    const paragraphs = document.paragraphs
+    // Table-cell paragraphs and empty WPS table-boundary anchors are structural ranges,
+    // not document paragraphs. Keeping them in recognition makes cell/end markers appear
+    // as “空行” and also distorts title/heading position statistics.
+    const paragraphs = document.paragraphs.filter(
+      p => p.tableIndex === undefined && !p.isTableBoundary
+    )
     const results: RecognitionResult[] = []
 
     let nonEmptyCount = 0
