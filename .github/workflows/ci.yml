@@ -7,6 +7,7 @@ on:
       - 'open-source-hardening-*'
       - 'feature/v1.0'
       - 'feature/v1.0.1'
+      - 'feature/v1.0.2'
   pull_request:
     branches: [main]
 
@@ -57,7 +58,7 @@ jobs:
         run: ./scripts/test-installer-safety.ps1
 
   package-candidate:
-    if: startsWith(github.ref, 'refs/heads/open-source-hardening-') || github.ref == 'refs/heads/feature/v1.0' || github.head_ref == 'feature/v1.0' || github.ref == 'refs/heads/feature/v1.0.1' || github.head_ref == 'feature/v1.0.1'
+    if: startsWith(github.ref, 'refs/heads/open-source-hardening-') || github.ref == 'refs/heads/feature/v1.0' || github.head_ref == 'feature/v1.0' || github.ref == 'refs/heads/feature/v1.0.1' || github.head_ref == 'feature/v1.0.1' || github.ref == 'refs/heads/feature/v1.0.2' || github.head_ref == 'feature/v1.0.2'
     needs: [validate, installer-safety]
     runs-on: windows-latest
     timeout-minutes: 15
@@ -105,7 +106,7 @@ jobs:
       - name: Upload release candidate
         uses: actions/upload-artifact@v4
         with:
-          name: wps-word-formatter-v1.0.1-release-candidate
+          name: wps-word-formatter-v1.0.2-release-candidate
           path: |
             wps-word-formatter-*-candidate.zip
             SHA256SUMS.txt

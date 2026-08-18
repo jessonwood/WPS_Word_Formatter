@@ -89,27 +89,29 @@ describe('V2.3 Document Cleanup Suite', () => {
 
     expect(issues.length).toBeGreaterThan(0)
 
-    // Check Leading Spaces detected
+    // Check Leading Spaces detected, but manual-only in v1.0.2
     const leading = issues.find(i => i.type === 'leading-spaces')
     expect(leading).toBeDefined()
     expect(leading?.paragraphIndex).toBe(2)
-    expect(leading?.safeAutoFix).toBe(true)
+    expect(leading?.safeAutoFix).toBe(false)
 
-    // Check Tab Indent detected
+    // Check Tab Indent detected, but manual-only in v1.0.2
     const tab = issues.find(i => i.type === 'tab-indent')
     expect(tab).toBeDefined()
     expect(tab?.paragraphIndex).toBe(3)
-    expect(tab?.safeAutoFix).toBe(true)
+    expect(tab?.safeAutoFix).toBe(false)
 
     // Check Multiple Spaces in Chinese detected
     const multiSpace = issues.find(i => i.type === 'multiple-spaces')
     expect(multiSpace).toBeDefined()
     expect(multiSpace?.paragraphIndex).toBe(4)
+    expect(multiSpace?.safeAutoFix).toBe(false)
 
     // Check Trailing Spaces detected
     const trailing = issues.find(i => i.type === 'trailing-spaces')
     expect(trailing).toBeDefined()
     expect(trailing?.paragraphIndex).toBe(6)
+    expect(trailing?.safeAutoFix).toBe(false)
 
     // Check Manual Line Break detected (and unchecked by default)
     const manualBreak = issues.find(i => i.type === 'manual-line-break')
@@ -118,16 +120,19 @@ describe('V2.3 Document Cleanup Suite', () => {
     expect(manualBreak?.safeAutoFix).toBe(false)
     expect(manualBreak?.enabled).toBe(false)
 
-    // Check Consecutive Blank lines detected (both P8 and P9)
+    // Check Consecutive Blank lines detected (both P8 and P9), but manual-only
     const blank8 = issues.find(i => i.paragraphIndex === 8 && i.type === 'multiple-blank-lines')
     const blank9 = issues.find(i => i.paragraphIndex === 9 && i.type === 'multiple-blank-lines')
     expect(blank8).toBeDefined()
     expect(blank9).toBeDefined()
+    expect(blank8?.safeAutoFix).toBe(false)
+    expect(blank9?.safeAutoFix).toBe(false)
 
-    // Check Empty paragraph before/after table
-    const emptyBeforeTable = issues.find(i => i.type === 'empty-paragraph-before-table')
-    expect(emptyBeforeTable).toBeDefined()
-    expect(emptyBeforeTable?.paragraphIndex).toBe(11)
+    // Exact table-boundary paragraphs are structural anchors and must not be offered for cleanup.
+    const emptyBeforeTable = issues.find(i => i.paragraphIndex === 11)
+    const emptyAfterTable = issues.find(i => i.paragraphIndex === 13)
+    expect(emptyBeforeTable).toBeUndefined()
+    expect(emptyAfterTable).toBeUndefined()
   })
 
   it('2. Preserves English standard spaces without false positives', () => {
@@ -153,6 +158,7 @@ describe('V2.3 Document Cleanup Suite', () => {
       expect(sum.count).toBeGreaterThan(0)
       expect(sum.name).toBeDefined()
     }
+    expect(issues.every(issue => issue.safeAutoFix === false)).toBe(true)
   })
 
   it('4. CleanupExecutor builds ExpectedTextChanges and executes with snapshot protection', async () => {
@@ -166,15 +172,19 @@ describe('V2.3 Document Cleanup Suite', () => {
 
     const expected = executor.buildExpectedChanges(doc, issues)
     expect(expected.length).toBeGreaterThan(0)
+    expect(expected.some(change => change.paragraphIndex === 11)).toBe(false)
+    expect(expected.some(change => change.paragraphIndex === 13)).toBe(false)
 
     const result = await executor.execute(doc, issues)
     expect(result.success).toBe(true)
     expect(result.appliedCount).toBeGreaterThan(0)
     expect(adapter.undoRecords).toContain('WPS Word Formatter 文档清理')
 
-    // Verifies text replacements were applied
+    // Verifies manually-confirmed text replacements were applied
     expect(Object.keys(adapter.replacedTexts).length).toBeGreaterThan(0)
-    // Verifies deleteParagraph was called for blank lines / table empty paragraphs
+    // Normal blank paragraphs can still be deleted when the user explicitly executes cleanup.
     expect(adapter.deletedParagraphs.length).toBeGreaterThan(0)
+    expect(adapter.deletedParagraphs).not.toContain(11)
+    expect(adapter.deletedParagraphs).not.toContain(13)
   })
 })
