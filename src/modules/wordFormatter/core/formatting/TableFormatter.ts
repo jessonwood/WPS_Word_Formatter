@@ -14,11 +14,18 @@ export class TableFormatter {
     // but force first-line/left/right indents to zero.
     const tableParagraphs = getTableParagraphs(tableIndex)
     for (const paragraph of tableParagraphs) {
+      const alignment: ParagraphStyle['alignment'] =
+        paragraph.alignment === 'center' ||
+        paragraph.alignment === 'right' ||
+        paragraph.alignment === 'justify'
+          ? paragraph.alignment
+          : 'left'
+
       const cellParagraphStyle: ParagraphStyle = {
         chineseFont: style.chineseFont,
         westernFont: style.westernFont,
         fontSizePt: style.fontSizePt,
-        alignment: paragraph.alignment || 'left',
+        alignment,
         firstLineIndentChars: 0,
         leftIndentChars: 0,
         rightIndentChars: 0
