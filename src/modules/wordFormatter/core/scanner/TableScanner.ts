@@ -9,7 +9,9 @@ export class TableScanner {
     logger.info('TableScanner', 'Reading tables from adapter...')
     const tables = await this.adapter.readTables()
 
-    // Correlate tables with both contained paragraphs and the exact outside neighbors.
+    // Correlate tables with contained paragraphs and exact outside neighbors.
+    // WPS can expose table control/anchor ranges as visually empty paragraphs; those
+    // structural ranges must not be treated as ordinary blank lines later.
     for (const table of tables) {
       let prevIdx: number | undefined
       let nextIdx: number | undefined
@@ -33,6 +35,14 @@ export class TableScanner {
 
       table.previousParagraphIndex = prevIdx
       table.nextParagraphIndex = nextIdx
+
+      const previous = prevIdx !== undefined ? paragraphs.find(p => p.index === prevIdx) : undefined
+      const next = nextIdx !== undefined ? paragraphs.find(p => p.index === nextIdx) : undefined
+
+      // Only empty immediate neighbors are structural table anchors. Non-empty neighbors
+      // such as “表1 ……” captions must remain normal recognizable paragraphs.
+      if (previous?.isEmpty) previous.isTableBoundary = true
+      if (next?.isEmpty) next.isTableBoundary = true
     }
 
     logger.info('TableScanner', `Scanned ${tables.length} tables with structural paragraph correlation`)
