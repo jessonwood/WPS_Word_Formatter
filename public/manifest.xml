@@ -1,6 +1,6 @@
 <manifest>
   <name>WpsWordFormatter</name>
   <type>wps</type>
-  <version>1.0.1</version>
+  <version>1.0.2</version>
   <description>WPS 文字智能文档排版加载项</description>
 </manifest>

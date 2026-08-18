@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented here.
 
-## [1.0.2] - Unreleased
+## [1.0.2] - 2026-08-18
 
 ### Fixed
 - 修复表格标题附近结构段被清理后，WPS 可能将独立的“表1 ……”标题吸入表格首行/首单元格的问题。
