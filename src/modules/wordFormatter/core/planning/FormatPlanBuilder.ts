@@ -55,9 +55,9 @@ export class FormatPlanBuilder {
 
     // 3. Process Paragraphs
     document.paragraphs.forEach(p => {
-      // Table-cell paragraphs are handled exclusively by TableFormatter. If they fall
-      // through as ordinary body paragraphs they inherit body first-line indent (2 chars).
-      if (p.tableIndex !== undefined) return
+      // Table cell paragraphs and empty WPS table-boundary anchors are structural ranges.
+      // They are handled by TableFormatter or ignored and must never receive body styles.
+      if (p.tableIndex !== undefined || p.isTableBoundary) return
 
       const pIdx = p.index
       const rec = recMap.get(pIdx)
