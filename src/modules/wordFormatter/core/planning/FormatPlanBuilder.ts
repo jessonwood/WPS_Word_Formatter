@@ -4,6 +4,7 @@ import type { RecognitionResult, ParagraphRole } from '../../types/recognition'
 import type { FormatScope } from '../../types/formatting'
 import type { FormatPlan, FormatChange, FormatPlanSummary, FormatApplyStrategy } from '../../types/planning'
 import { FormatComparator } from './FormatComparator'
+import { registerTableParagraphs } from './TableParagraphIsolation'
 
 export class FormatPlanBuilder {
   /**
@@ -25,6 +26,10 @@ export class FormatPlanBuilder {
       strategy = 'minimal',
       scope = 'all'
     } = params
+
+    // WPS exposes text inside table cells through Document.Paragraphs. Register these
+    // paragraphs before planning so paragraph formatting and table formatting stay isolated.
+    registerTableParagraphs(document)
 
     const changes: FormatChange[] = []
     let affectedParagraphs = 0
@@ -50,6 +55,10 @@ export class FormatPlanBuilder {
 
     // 3. Process Paragraphs
     document.paragraphs.forEach(p => {
+      // Table-cell paragraphs are handled exclusively by TableFormatter. If they fall
+      // through as ordinary body paragraphs they inherit body first-line indent (2 chars).
+      if (p.tableIndex !== undefined) return
+
       const pIdx = p.index
       const rec = recMap.get(pIdx)
       const role: ParagraphRole = userOverrides[pIdx] || rec?.role || 'body'
@@ -108,6 +117,34 @@ export class FormatPlanBuilder {
     if (shouldFormatTables && document.tables && template.table && template.table.enabled) {
       document.tables.forEach(table => {
         const tChanges = FormatComparator.compareTable(table, template.table)
+
+        // If a previous formatter run already put body indentation inside table cells,
+        // create a table-level repair change. This guarantees minimal mode invokes
+        // TableFormatter and resets the cell paragraph indents to zero.
+        const tableParagraphs = document.paragraphs.filter(p => p.tableIndex === table.index)
+        const hasParagraphIndent = tableParagraphs.some(p => {
+          const firstLine = p.firstLineIndentChars ?? p.firstLineIndent ?? 0
+          const left = p.leftIndent ?? 0
+          const right = p.rightIndent ?? 0
+          return Math.abs(firstLine) > 0.01 || Math.abs(left) > 0.01 || Math.abs(right) > 0.01
+        })
+
+        if (hasParagraphIndent) {
+          tChanges.push({
+            id: `table-${table.index}-paragraph-indent`,
+            targetType: 'table',
+            targetIndex: table.index,
+            property: 'table-paragraph-indent',
+            propertyName: '表格单元格段落缩进',
+            before: '存在非零首行/左右缩进',
+            after: '首行/左右缩进均为 0',
+            reason: '表格内部段落不得继承正文首行缩进，统一由表格格式化负责',
+            category: 'table',
+            enabled: true,
+            impact: 'low'
+          })
+        }
+
         if (tChanges.length > 0) {
           affectedTables++
           changes.push(...tChanges)
@@ -205,7 +242,7 @@ export class FormatPlanBuilder {
         }
       case 'heading-5':
         return {
-          style: template.heading5 || template.headings?.[4]?.style || template.customHeadings?.find(h => h.level === 5)?.style || template.heading4 || template.heading3 || template.body,
+          style: template.heading5 || template.headings?.[4]?.style || template.customHeadings?.find(h => h.level === 5)?.style || template.heading4 || template.heading3 || template.heading2 || template.heading1 || template.body,
           displayName: template.headings?.[4]?.name || '五级标题',
           outlineLevel: 5,
           isHeading: true,
@@ -213,7 +250,7 @@ export class FormatPlanBuilder {
         }
       case 'heading-6':
         return {
-          style: template.heading6 || template.headings?.[5]?.style || template.customHeadings?.find(h => h.level === 6)?.style || template.heading5 || template.heading4 || template.body,
+          style: template.heading6 || template.headings?.[5]?.style || template.customHeadings?.find(h => h.level === 6)?.style || template.heading5 || template.heading4 || template.heading3 || template.heading2 || template.heading1 || template.body,
           displayName: template.headings?.[5]?.name || '六级标题',
           outlineLevel: 6,
           isHeading: true,
