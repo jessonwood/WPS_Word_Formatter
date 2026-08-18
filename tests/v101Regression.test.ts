@@ -49,12 +49,12 @@ describe('v1.0.1 regressions', () => {
     expect(result[0].inlineRanges).toBeUndefined()
   })
 
-  it('keeps single structural spaces and collapses multiple spaces to one', () => {
+  it('keeps single structural spaces and only suggests collapsing multiple spaces to one', () => {
     const scanner = new CleanupScanner()
     expect(scanner.scan(makeDoc(['第一章 总则', '第一条 正文内容'])).filter(i => i.type === 'multiple-spaces')).toHaveLength(0)
     const multi = scanner.scan(makeDoc(['第一章   总则', '第一条　　正文内容'])).filter(i => i.type === 'multiple-spaces')
     expect(multi.map(i => i.suggestedText)).toEqual(['第一章 总则', '第一条 正文内容'])
-    expect(multi.every(i => i.safeAutoFix)).toBe(true)
+    expect(multi.every(i => i.safeAutoFix === false)).toBe(true)
   })
 
   it('minimal formatting uses body base and heading-2 range overlay', async () => {
