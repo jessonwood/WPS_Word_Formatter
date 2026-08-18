@@ -1,6 +1,6 @@
 {
   "name": "wps-word-formatter",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "WPS 文字 (WPS Writer) 本地智能文档排版、格式清理、结构体检与安全物理备份加载项",
   "author": "WPS Word Formatter Contributors",
   "license": "MIT",
