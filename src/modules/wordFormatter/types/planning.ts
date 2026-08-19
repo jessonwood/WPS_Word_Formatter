@@ -25,6 +25,7 @@ export type FormatProperty =
   | 'table-header-repeat'
   | 'table-alignment'
   | 'table-column-align'
+  | 'table-paragraph-indent'
 
 export interface FormatChange {
   id: string

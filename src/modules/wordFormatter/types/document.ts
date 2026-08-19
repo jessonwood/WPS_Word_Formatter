@@ -59,6 +59,7 @@ export interface ParagraphModel {
   hasCommentReference: boolean
 
   tableIndex?: number
+  isTableBoundary?: boolean
   isEmpty: boolean
 }
 
