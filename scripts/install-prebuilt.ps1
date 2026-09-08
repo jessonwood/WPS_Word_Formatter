@@ -61,7 +61,10 @@ $plugin = $xml.CreateElement('jsplugin')
 $plugin.SetAttribute('version', $version)
 $plugin.SetAttribute('name', 'WpsWordFormatter')
 $plugin.SetAttribute('url', $folderName)
-$plugin.SetAttribute('enable', 'enable_dev')
+# Release packages must use the normal enabled state. enable_dev is reserved for
+# development/debug deployments and can cause WPS to initialize add-in infrastructure
+# more aggressively than a production registration.
+$plugin.SetAttribute('enable', 'true')
 $plugin.SetAttribute('type', 'wps')
 [void]$root.AppendChild($plugin)
 
@@ -80,5 +83,6 @@ Write-Host "Installation succeeded." -ForegroundColor Green
 Write-Host "Version: v$version" -ForegroundColor Gray
 Write-Host "Folder:  $addonTarget" -ForegroundColor Gray
 Write-Host "Config:  $targetPublishXml" -ForegroundColor Gray
+Write-Host "Registration: Writer-only / release mode" -ForegroundColor Gray
 Write-Host "Restart WPS Writer to load the add-in." -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
