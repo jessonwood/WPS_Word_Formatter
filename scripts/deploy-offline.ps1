@@ -74,7 +74,7 @@ $plugin = $xml.CreateElement("jsplugin")
 $plugin.SetAttribute("version", $version)
 $plugin.SetAttribute("name", "WpsWordFormatter")
 $plugin.SetAttribute("url", $folderName)
-$plugin.SetAttribute("enable", "enable_dev")
+$plugin.SetAttribute("enable", "true")
 $plugin.SetAttribute("type", "wps")
 [void]$xml.DocumentElement.AppendChild($plugin)
 
@@ -89,6 +89,7 @@ Write-Host ""
 Write-Host "Offline deployment succeeded! Version: v$version" -ForegroundColor Green
 Write-Host "Folder: $addonFolder" -ForegroundColor Gray
 Write-Host "Config: $targetPublishXml" -ForegroundColor Gray
+Write-Host "Registration: Writer-only / release mode" -ForegroundColor Gray
 Write-Host "Other WPS JS add-in registrations were preserved." -ForegroundColor Green
 Write-Host "Please restart WPS Writer." -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
