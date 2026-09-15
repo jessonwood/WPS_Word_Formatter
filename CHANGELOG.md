@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented here.
 
+## [1.0.3] - 2026-09-15
+
+### Fixed
+- 修复“保护嵌入对象”未真正隔离图表/图片所在段落的问题；开启保护后，内嵌图表、图片、Shape、Field、Bookmark 不再被正文固定行距、缩进等段落样式压缩或裁切。
+- 修复 WPS 宿主检测具有副作用的问题；宿主识别不再调用 `WpsApplication()` / `EtApplication()` 等组件工厂函数，非 Writer 宿主不会初始化 Word Formatter 的 Writer 逻辑。
+- 修复正式安装仍使用开发启用模式的问题；发布注册改为 `enable="true"`，保持 `type="wps"` 的 Writer-only 注册方式。
+
+### Changed
+- 正式发布版本统一升级为 `1.0.3`，同步 `package.json`、WPS manifest 与 `publish.xml`。
+- Release 包继续采用预编译离线安装方式，终端用户无需 Node.js / npm。
+
 ## [1.0.2] - 2026-08-18
 
 ### Fixed
