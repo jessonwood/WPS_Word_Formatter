@@ -1,0 +1,40 @@
+name: Publish v1.0.3 once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/publish-v103-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  create-tag:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create v1.0.3 tag on release commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_SHA=$(git rev-parse HEAD^)
+          VERSION=$(git show "$RELEASE_SHA:package.json" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).version))")
+          if [ "$VERSION" != "1.0.3" ]; then
+            echo "Expected package version 1.0.3, got $VERSION"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin refs/tags/v1.0.3 >/dev/null 2>&1; then
+            echo "Tag v1.0.3 already exists"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v1.0.3 "$RELEASE_SHA" -m "WPS Word Formatter v1.0.3"
+          git push origin v1.0.3
