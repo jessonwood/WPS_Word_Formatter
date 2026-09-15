@@ -8,7 +8,7 @@ on:
       - 'feature/v1.0'
       - 'feature/v1.0.1'
       - 'feature/v1.0.2'
-      - 'fix/v1.0.2-table-cell-indent'
+      - 'fix/v1.0.2-*'
   pull_request:
     branches: [main]
 
@@ -59,7 +59,7 @@ jobs:
         run: ./scripts/test-installer-safety.ps1
 
   package-candidate:
-    if: startsWith(github.ref, 'refs/heads/open-source-hardening-') || github.ref == 'refs/heads/feature/v1.0' || github.head_ref == 'feature/v1.0' || github.ref == 'refs/heads/feature/v1.0.1' || github.head_ref == 'feature/v1.0.1' || github.ref == 'refs/heads/feature/v1.0.2' || github.head_ref == 'feature/v1.0.2' || github.ref == 'refs/heads/fix/v1.0.2-table-cell-indent' || github.head_ref == 'fix/v1.0.2-table-cell-indent'
+    if: startsWith(github.ref, 'refs/heads/open-source-hardening-') || github.ref == 'refs/heads/feature/v1.0' || github.head_ref == 'feature/v1.0' || github.ref == 'refs/heads/feature/v1.0.1' || github.head_ref == 'feature/v1.0.1' || github.ref == 'refs/heads/feature/v1.0.2' || github.head_ref == 'feature/v1.0.2' || startsWith(github.ref, 'refs/heads/fix/v1.0.2-') || startsWith(github.head_ref, 'fix/v1.0.2-')
     needs: [validate, installer-safety]
     runs-on: windows-latest
     timeout-minutes: 15

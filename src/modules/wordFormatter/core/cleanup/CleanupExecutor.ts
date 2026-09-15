@@ -2,6 +2,7 @@ import type { WriterAdapter } from '../../adapters/WriterAdapter'
 import type { SnapshotManager } from '../snapshot/SnapshotManager'
 import type { DocumentModel } from '../../types/document'
 import type { CleanupIssue, CleanupResult, ExpectedTextChange } from '../../types/cleanup'
+import { paragraphContainsProtectedEmbeddedObject } from '../protection/EmbeddedObjectProtection'
 import { logger } from '@/shared/logger/logger'
 
 export class CleanupExecutor {
@@ -29,9 +30,13 @@ export class CleanupExecutor {
     }
 
     for (const p of paragraphs) {
-      if (p.tableIndex !== undefined || protectedTableParagraphs.has(p.index)) {
+      if (
+        p.tableIndex !== undefined ||
+        protectedTableParagraphs.has(p.index) ||
+        paragraphContainsProtectedEmbeddedObject(p)
+      ) {
         if (issueMap.has(p.index)) {
-          logger.warn('CleanupExecutor', `Skipped cleanup for protected table paragraph P${p.index}`)
+          logger.warn('CleanupExecutor', `Skipped cleanup for protected structural/object paragraph P${p.index}`)
         }
         continue
       }

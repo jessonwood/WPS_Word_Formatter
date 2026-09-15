@@ -33,6 +33,9 @@ try {
 
     if (-not $otherAfterInstall) { throw 'Installer removed unrelated OtherAddon entry.' }
     if (-not $oursAfterInstall) { throw 'Installer failed to register WpsWordFormatter.' }
+    if ($oursAfterInstall.GetAttribute('type') -ne 'wps') { throw 'WpsWordFormatter must remain Writer-only (type=wps).' }
+    if ($oursAfterInstall.GetAttribute('enable') -ne 'true') { throw 'Release installer must use enable=true, not enable_dev.' }
+    if ($otherAfterInstall.GetAttribute('enable') -ne 'enable_dev') { throw 'Installer modified unrelated OtherAddon attributes.' }
 
     $installedDir = Join-Path $jsaddons 'WpsWordFormatter_0.9.0-beta.1'
     if (-not (Test-Path $installedDir)) { throw 'Installer failed to copy prebuilt add-in folder.' }
@@ -47,7 +50,7 @@ try {
     if ($oursAfterUninstall) { throw 'Uninstaller left WpsWordFormatter registration behind.' }
     if (Test-Path $installedDir) { throw 'Uninstaller left WpsWordFormatter program folder behind.' }
 
-    Write-Host '[PASS] Installer/uninstaller preserved unrelated publish.xml entries.' -ForegroundColor Green
+    Write-Host '[PASS] Installer/uninstaller preserved unrelated publish.xml entries and enforced Writer-only release mode.' -ForegroundColor Green
 }
 finally {
     $env:APPDATA = $originalAppData

@@ -5,6 +5,10 @@ import type { FormatScope } from '../../types/formatting'
 import type { FormatPlan, FormatChange, FormatPlanSummary, FormatApplyStrategy } from '../../types/planning'
 import { FormatComparator } from './FormatComparator'
 import { registerTableParagraphs } from './TableParagraphIsolation'
+import {
+  paragraphContainsProtectedEmbeddedObject,
+  registerEmbeddedObjectProtection
+} from '../protection/EmbeddedObjectProtection'
 
 export class FormatPlanBuilder {
   /**
@@ -27,9 +31,10 @@ export class FormatPlanBuilder {
       scope = 'all'
     } = params
 
-    // WPS exposes text inside table cells through Document.Paragraphs. Register these
-    // paragraphs before planning so paragraph formatting and table formatting stay isolated.
+    // WPS exposes table cell/control ranges and embedded objects through ordinary
+    // Document.Paragraphs. Register both protections before planning/execution.
     registerTableParagraphs(document)
+    registerEmbeddedObjectProtection(document, template.options.preserveImagesAndShapes)
 
     const changes: FormatChange[] = []
     let affectedParagraphs = 0
@@ -58,6 +63,17 @@ export class FormatPlanBuilder {
       // Table cell paragraphs and empty WPS table-boundary anchors are structural ranges.
       // They are handled by TableFormatter or ignored and must never receive body styles.
       if (p.tableIndex !== undefined || p.isTableBoundary) return
+
+      // When embedded-object protection is enabled, do not generate any paragraph-level
+      // changes for a paragraph containing an inline/floating chart, image, field or
+      // bookmark. Exact line spacing on an inline chart paragraph can visibly clip the
+      // chart even though the object itself is never deleted or replaced.
+      if (
+        template.options.preserveImagesAndShapes &&
+        paragraphContainsProtectedEmbeddedObject(p)
+      ) {
+        return
+      }
 
       const pIdx = p.index
       const rec = recMap.get(pIdx)

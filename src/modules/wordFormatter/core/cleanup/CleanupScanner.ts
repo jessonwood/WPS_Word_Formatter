@@ -1,5 +1,6 @@
 import type { DocumentModel, ParagraphModel } from '../../types/document'
 import type { CleanupIssue, CleanupIssueType } from '../../types/cleanup'
+import { paragraphContainsProtectedEmbeddedObject } from '../protection/EmbeddedObjectProtection'
 import { logger } from '@/shared/logger/logger'
 
 export class CleanupScanner {
@@ -26,8 +27,14 @@ export class CleanupScanner {
       const group = currentEmptyGroup
       currentEmptyGroup = []
 
-      // Never offer deletion for table-cell paragraphs or table-boundary anchors.
-      const candidates = group.filter(p => p.tableIndex === undefined && !protectedTableParagraphs.has(p.index))
+      // Never offer deletion for table structural paragraphs or paragraphs that own an
+      // embedded object. Object-only paragraphs often look empty after WPS control
+      // characters are stripped, but deleting them can delete or corrupt the object.
+      const candidates = group.filter(p =>
+        p.tableIndex === undefined &&
+        !protectedTableParagraphs.has(p.index) &&
+        !paragraphContainsProtectedEmbeddedObject(p)
+      )
       const groupLen = candidates.length
       if (groupLen === 0) return
 
@@ -71,8 +78,14 @@ export class CleanupScanner {
       const cleaned = (p.text || '').replace(/[\r\n\x07\s\u3000\t]/g, '')
       const isEmpty = p.isEmpty || cleaned.length === 0
 
-      // Do not scan table contents or the exact outside paragraphs adjacent to a table.
-      if (p.tableIndex !== undefined || protectedTableParagraphs.has(p.index)) {
+      // Do not scan table structures or embedded-object owner paragraphs. An inline
+      // chart/image can be represented as a visually empty paragraph after control-char
+      // normalization, so it must be excluded before blank-line detection.
+      if (
+        p.tableIndex !== undefined ||
+        protectedTableParagraphs.has(p.index) ||
+        paragraphContainsProtectedEmbeddedObject(p)
+      ) {
         flushEmptyGroup()
         continue
       }
