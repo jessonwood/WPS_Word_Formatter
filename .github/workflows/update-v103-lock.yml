@@ -1,0 +1,35 @@
+name: Update v1.0.3 lockfile once
+
+on:
+  push:
+    branches:
+      - 'release/v1.0.3'
+
+permissions:
+  contents: write
+
+jobs:
+  update-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v1.0.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Sync package-lock version
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Commit lockfile if changed
+        shell: bash
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: sync package-lock for v1.0.3"
+          git push origin HEAD:release/v1.0.3
